@@ -1,10 +1,34 @@
 {
-  "f1": { "label": "Plum" },
-  "f2": { "label": "Orchid" },
-  "f3": { "label": "Chrysanthemum" },
-  "f4": { "label": "Bamboo" },
-  "f5": { "label": "Spring" },
-  "f6": { "label": "Summer" },
-  "f7": { "label": "Autumn" },
-  "f8": { "label": "Winter" }
+  "f1": {
+    "label": "Plum",
+    "image": "1.jpg"
+  },
+  "f2": {
+    "label": "Orchid",
+    "image": "2.jpg"
+  },
+  "f3": {
+    "label": "Chrysanthemum",
+    "image": "3.jpg"
+  },
+  "f4": {
+    "label": "Bamboo",
+    "image": "4.jpg"
+  },
+  "f5": {
+    "label": "Spring",
+    "image": "5.jpg"
+  },
+  "f6": {
+    "label": "Summer",
+    "image": "6.jpg"
+  },
+  "f7": {
+    "label": "Autumn",
+    "image": "7.jpg"
+  },
+  "f8": {
+    "label": "Winter",
+    "image": "8.jpg"
+  }
 }
