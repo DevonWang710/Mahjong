@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mahjong for Two</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="lobby" class="screen">
+    <div class="card">
+      <h1>🀄 Mahjong</h1>
+      <p class="sub">Two of us, two bots.</p>
+      <label>Your name <input id="name" maxlength="20" autocomplete="off"></label>
+      <label>Room code <input id="room" maxlength="12" autocomplete="off" placeholder="e.g. LOVE"></label>
+      <button id="joinBtn" class="primary">Join room</button>
+      <div id="lobbyInfo"></div>
+      <p class="muted credit">Tile images by <a href="http://www.martinpersson.org">Martin Persson</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</p>
+    </div>
+  </section>
+
+  <section id="table" class="screen hidden">
+    <div class="scene" id="scene">
+      <div class="stage" id="stage">
+        <div class="board" id="board">
+          <div class="felt"></div>
+          <div class="seat" data-rel="0"><div class="pool" id="pool0"></div><div class="laid" id="laid0"></div></div>
+          <div class="seat" data-rel="1"><div class="pool" id="pool1"></div><div class="laid" id="laid1"></div><div class="stand" id="stand1"></div></div>
+          <div class="seat" data-rel="2"><div class="pool" id="pool2"></div><div class="laid" id="laid2"></div><div class="stand" id="stand2"></div></div>
+          <div class="seat" data-rel="3"><div class="pool" id="pool3"></div><div class="laid" id="laid3"></div><div class="stand" id="stand3"></div></div>
+          <div class="info" id="info"></div>
+          <div class="near" id="near"></div>
+        </div>
+      </div>
+      <div class="plate" id="pos1"></div>
+      <div class="plate" id="pos2"></div>
+      <div class="plate" id="pos3"></div>
+    </div>
+    <div class="me" id="pos0">
+      <button class="mute" id="muteBtn" title="Sound on/off"></button>
+      <div class="claim-card hidden" id="claimCard"></div>
+      <div class="me-head" id="meHead"></div>
+      <div class="hand-row"><div class="me-melds" id="meMelds"></div><div class="hand" id="hand"></div><button class="sort-btn hidden" id="sortBtn" title="Sort your hand by suit">Organize</button></div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </section>
+
+  <div id="fx"></div>
+  <div id="toasts"></div>
+  <div id="modal" class="hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="sound.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

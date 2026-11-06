@@ -1,0 +1,17 @@
+{
+  "name": "mj",
+  "version": "0.1.0",
+  "description": "Hong Kong style mahjong for two humans and two bots",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/selftest.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,4 @@
+Mahjong tile images by Martin Persson (http://www.martinpersson.org), with edits by Cangjie6.
+Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+Source: https://commons.wikimedia.org/wiki/Category:PNG_3D_Mahjong_tiles
+Files were renamed to this game's tile codes (e.g. Mpu1m.png -> m1.png, Mpu7z.png -> z5.png, Mpu5q.png -> f1.png).
