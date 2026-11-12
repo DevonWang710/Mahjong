@@ -223,6 +223,20 @@ kbd {
 .hand .tile.sel { transform: translateY(-10px); outline: 3px solid var(--gold); }
 .hand .tile.drawn { margin-left: 14px; }
 .hand.inactive .tile { cursor: default; }
+/* Tiles a claim, kong or win would use */
+.hand .tile.match img:not(.photo) { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(245,197,66,.85); border-radius: 6px; }
+.hand .tile.match { transform: translateY(-6px); }
+.hand .tile.match.sel { transform: translateY(-10px); }
+
+/* Decision countdown */
+.clock {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,.18); color: #fff;
+}
+.clock.low { background: #e74c3c; animation: clockpulse 1s ease-in-out infinite; }
+@keyframes clockpulse { 50% { transform: scale(1.08); } }
+.info .clock { margin-top: 6px; }
+button.draw-btn { font-size: 19px; padding: 12px 26px; }
 .me {
   display: flex; flex-direction: column; gap: 4px; position: absolute; left: 6px; right: 6px; bottom: 6px; z-index: 5;
   --htw: clamp(30px, calc((100vw - 60px) / 15), 64px);

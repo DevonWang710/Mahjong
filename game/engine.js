@@ -38,6 +38,12 @@ class Game {
     this.version++;
     this.onChange();
     this.scheduleBots();
+    this.scheduleClock();
+  }
+
+  // Starts the countdown for a real player's decision (bots ignore it).
+  startClock() {
+    this.deadline = Math.max(Date.now(), this.dealUntil || 0) + config.TURN_SECONDS * 1000;
   }
 
   // ---------- hand lifecycle ----------
@@ -59,6 +65,7 @@ class Game {
     });
     // Players watch the deal animation before anyone moves.
     this.dealUntil = Date.now() + config.DEAL_MS;
+    this.startClock();
     this.changed();
   }
 
@@ -85,11 +92,20 @@ class Game {
     return true;
   }
 
+  // Bots draw straight away; real players tap to draw their tile.
   nextTurn(from) {
     this.claim = null;
     this.turn = (from + 1) % 4;
-    this.phase = 'discard';
-    if (this.draw(this.turn)) this.changed();
+    this.drawnTile = null;
+    if (this.wall.length === 0) return this.endDraw();
+    if (this.isAuto(this.turn)) {
+      this.phase = 'discard';
+      if (this.draw(this.turn)) this.changed();
+      return;
+    }
+    this.phase = 'draw';
+    this.startClock();
+    this.changed();
   }
 
   endDraw() {
@@ -182,6 +198,12 @@ class Game {
   act(seat, a) {
     if (!a || typeof a.type !== 'string') return;
     if (a.type === 'claim') return this.respond(seat, a.claim || { type: 'pass' });
+    if (a.type === 'draw') {
+      if (this.phase !== 'draw' || this.turn !== seat) return;
+      this.phase = 'discard';
+      if (this.draw(seat)) this.changed();
+      return;
+    }
     if (this.phase !== 'discard' || this.turn !== seat) return;
     const p = this.players[seat];
 
@@ -241,6 +263,7 @@ class Game {
     if (!Object.keys(options).length) return this.nextTurn(from);
     this.phase = 'claim';
     this.claim = { from, tile, options, responses: {} };
+    this.startClock();
     this.changed();
   }
 
@@ -293,6 +316,7 @@ class Game {
     }
     this.event('claim', { seat, kind, tiles: p.melds[p.melds.length - 1].tiles.slice() });
     Object.assign(this, { claim: null, turn: seat, phase: 'discard', drawnTile: null, canTsumo: false });
+    this.startClock();
     if (kind === 'kong' && !this.draw(seat, true)) return;
     this.changed();
   }
@@ -345,6 +369,47 @@ class Game {
     }
   }
 
+  // ---------- the decision clock ----------
+
+  // Milliseconds left for the real player(s) the table is waiting on, or null if it's waiting on bots.
+  timeLeft() {
+    if (!this.deadline) return null;
+    const c = this.claim;
+    const human = this.phase === 'claim'
+      ? Object.keys(c.options).some((s) => !this.isAuto(+s) && !(s in c.responses))
+      : (this.phase === 'draw' || this.phase === 'discard') && !this.isAuto(this.turn);
+    return human ? Math.max(0, this.deadline - Date.now()) : null;
+  }
+
+  scheduleClock() {
+    clearTimeout(this.clockTimer);
+    if (this.timeLeft() === null) return;
+    const v = this.version;
+    this.clockTimer = setTimeout(() => { if (v === this.version) this.timeUp(); }, this.timeLeft());
+  }
+
+  // Time ran out: pass on claims, or draw, play flowers and throw the newest tile.
+  // Each step calls changed(), which reschedules the (already expired) clock for the next step.
+  timeUp() {
+    if (this.phase === 'claim') {
+      for (const s of Object.keys(this.claim.options).map(Number)) {
+        if (this.phase !== 'claim') return;
+        if (!this.isAuto(s) && !(s in this.claim.responses)) this.respond(s, { type: 'pass' });
+      }
+      return;
+    }
+    const seat = this.turn;
+    if (this.isAuto(seat)) return;
+    if (this.phase === 'draw') return this.act(seat, { type: 'draw' });
+    if (this.phase !== 'discard') return;
+    const o = this.selfOptions(seat);
+    if (o.flowers.length) return this.act(seat, { type: 'flower', tile: o.flowers[0] });
+    const t = this.drawnTile && !isFlower(this.drawnTile)
+      ? this.drawnTile
+      : this.players[seat].hand.filter((x) => !isFlower(x)).pop();
+    this.act(seat, { type: 'discard', tile: t });
+  }
+
   botTurn(seat) {
     const o = this.selfOptions(seat);
     if (!o) return;
@@ -386,6 +451,8 @@ class Game {
       })),
       lastDiscard: this.lastDiscard,
       drawnTile: this.turn === seat ? this.drawnTile : null,
+      canDraw: this.phase === 'draw' && this.turn === seat,
+      timeLeft: this.timeLeft(),
       self: this.selfOptions(seat),
       claim: c ? {
         tile: c.tile,

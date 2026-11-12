@@ -28,36 +28,47 @@ console.log('scoring checks passed');
 
 config.BOT_DELAY_MS = 0;
 config.DEAL_MS = 0;
-const HANDS = 300;
-let done = 0;
-let wins = 0;
-const players = [0, 1, 2, 3].map((i) => ({ name: 'B' + i, isBot: true, connected: true }));
-const game = new Game(players, {
-  onChange() {
-    const g = game;
-    const total = g.wall.length + g.players.reduce((s, p) =>
-      s + p.hand.length + p.flowers.length + p.discards.length + p.melds.reduce((a, m) => a + m.tiles.length, 0), 0);
-    assert.strictEqual(total, 144, 'tile count');
-    assert.ok(g.players.every((p) => p.discards.every((t) => t[0] !== 'f')), 'flowers are never discarded');
-    assert.ok(g.players.every((p) => p.melds.every((m) => m.tiles.every((t) => !t || t[0] !== 'f'))), 'no flowers in melds');
-    if (g.phase === 'discard') {
-      const p = g.players[g.turn];
-      const sets = p.melds.length;
-      assert.strictEqual(p.hand.length + sets * 3, 14, 'hand size on turn');
-    }
-    if (g.phase === 'ended' && !g._counted) {
-      g._counted = true;
-      done++;
-      if (g.result.type === 'win') wins++;
-      const sum = g.players.reduce((s, p) => s + p.score, 0);
-      assert.strictEqual(sum, 0, 'scores zero-sum');
-      if (done >= HANDS) {
-        console.log(`simulated ${done} hands, ${wins} wins, ${done - wins} draws — all checks passed`);
-        process.exit(0);
-      }
-      setImmediate(() => { g._counted = false; g.nextHand(); });
-    }
-  },
-});
-game.startHand();
-setTimeout(() => { console.error(`stalled after ${done} hands`); process.exit(1); }, 60000);
+
+// Plays `hands` hands and checks tiles are never lost. Resolves with the number of wins.
+function simulate(players, hands) {
+  return new Promise((resolve) => {
+    let done = 0;
+    let wins = 0;
+    const game = new Game(players, {
+      onChange() {
+        const g = game;
+        const total = g.wall.length + g.players.reduce((s, p) =>
+          s + p.hand.length + p.flowers.length + p.discards.length + p.melds.reduce((a, m) => a + m.tiles.length, 0), 0);
+        assert.strictEqual(total, 144, 'tile count');
+        assert.ok(g.players.every((p) => p.discards.every((t) => t[0] !== 'f')), 'flowers are never discarded');
+        assert.ok(g.players.every((p) => p.melds.every((m) => m.tiles.every((t) => !t || t[0] !== 'f'))), 'no flowers in melds');
+        if (g.phase === 'discard' || g.phase === 'draw') {
+          const p = g.players[g.turn];
+          assert.strictEqual(p.hand.length + p.melds.length * 3, g.phase === 'draw' ? 13 : 14, `hand size on ${g.phase}`);
+        }
+        if (g.phase === 'ended' && !g._counted) {
+          g._counted = true;
+          done++;
+          if (g.result.type === 'win') wins++;
+          assert.strictEqual(g.players.reduce((s, p) => s + p.score, 0), 0, 'scores zero-sum');
+          if (done >= hands) return resolve(wins);
+          setImmediate(() => { g._counted = false; g.nextHand(); });
+        }
+      },
+    });
+    game.startHand();
+  });
+}
+
+const bots = [0, 1, 2, 3].map((i) => ({ name: 'B' + i, isBot: true, connected: true }));
+// Two real players who never touch anything: the clock must draw, discard and pass for them.
+const idle = bots.map((p, i) => (i % 2 ? p : { ...p, isBot: false }));
+setTimeout(() => { console.error('stalled'); process.exit(1); }, 60000);
+(async () => {
+  let wins = await simulate(bots, 300);
+  console.log(`simulated 300 bot hands, ${wins} wins — all checks passed`);
+  config.TURN_SECONDS = 0.001;
+  wins = await simulate(idle, 40);
+  console.log(`simulated 40 hands with idle players timing out, ${wins} wins — all checks passed`);
+  process.exit(0);
+})();

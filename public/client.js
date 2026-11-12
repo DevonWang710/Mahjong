@@ -41,6 +41,8 @@ let deal = null; // while the deal animation runs: { id, shown: tiles shown per 
 let lastAnimKey = null;
 let celebrating = false; // the result window waits until the win/draw animation finishes
 let drawnSettled = false; // true once I've dragged this turn's drawn tile into my hand
+let clockEnd = null; // local time the current decision runs out (real players only)
+let hoverOpt = null; // the claim option under the pointer, so its tiles light up in my hand
 
 fetch('flowers/flowers.json').then((r) => r.json()).then((j) => { flowers = j; if (state) render(); }).catch(() => {});
 
@@ -91,6 +93,8 @@ socket.on('state', (s) => {
   const prev = state;
   const first = !state;
   state = s;
+  clockEnd = s.timeLeft == null ? null : Date.now() + s.timeLeft;
+  hoverOpt = null;
   if (first && !cameFromLobby) seenEvent = Math.max(0, ...s.events.map((e) => e.id));
   selected = null;
   const eventSound = showEvents();
@@ -103,7 +107,7 @@ socket.on('state', (s) => {
 // ---------- sounds ----------
 
 const discardCount = (s) => s.players.reduce((n, p) => n + p.discards.length, 0);
-const myTurn = (s) => s.phase === 'discard' && s.turn === s.mySeat;
+const myTurn = (s) => (s.phase === 'draw' || s.phase === 'discard') && s.turn === s.mySeat;
 
 // Sounds that come from comparing the old and new state (events are handled in showEvents).
 function playStateSounds(prev, s, eventSound) {
@@ -469,6 +473,35 @@ function renderMe() {
     hand.appendChild(el);
   });
   if (deal) deal.meBefore = tiles.length;
+  highlightHand();
+}
+
+// Lights up the tiles in my hand that a claim, kong or win would use.
+function highlightHand() {
+  const s = state;
+  const need = {};
+  const add = (tiles) => {
+    const n = {};
+    for (const t of tiles) n[t] = (n[t] || 0) + 1;
+    for (const t in n) need[t] = Math.max(need[t] || 0, n[t]);
+  };
+  const c = s.claim;
+  if (c && c.options) {
+    for (const o of hoverOpt ? [hoverOpt] : c.options) {
+      if (o.type === 'chow') add(o.tiles);
+      else if (o.type === 'pung') add([c.tile, c.tile]);
+      else if (o.type === 'kong') add([c.tile, c.tile, c.tile]);
+      else if (o.type === 'win') add(s.players[s.mySeat].hand || []);
+    }
+  } else if (s.self) {
+    for (const k of s.self.kongs) add([k, k, k, k]);
+    if (s.self.tsumo) add(s.players[s.mySeat].hand || []);
+  }
+  for (const el of $('hand').children) {
+    const t = el.dataset.tile;
+    el.classList.toggle('match', need[t] > 0);
+    if (need[t] > 0) need[t]--;
+  }
 }
 
 // Tapping a flower twice plays it (flowers can't be discarded).
@@ -491,18 +524,46 @@ function renderInfo() {
   let status;
   if (s.phase === 'ended') status = 'Hand over';
   else if (s.claim) {
-    const waiting = s.claim.waitingOn.filter((x) => !s.players[x].isBot).map(nameOf);
-    status = waiting.length ? `Waiting for ${waiting.join(', ')}…` : 'Bots are thinking…';
-  } else if (s.turn === s.mySeat) status = 'Your turn';
+    if (s.claim.options) status = 'Claim or pass?';
+    else {
+      const deciding = s.claim.waitingOn.filter((x) => !s.players[x].isBot && x !== s.mySeat).map((x) => esc(nameOf(x)));
+      status = deciding.length ? `${deciding.join(', ')} ${deciding.length > 1 ? 'are' : 'is'} deciding` : 'Bots are thinking…';
+    }
+  } else if (s.turn === s.mySeat) status = s.canDraw ? 'Your turn: draw a tile' : 'Your turn: discard to end it';
   else {
     const p = s.players[s.turn];
-    status = !p.connected ? `Waiting for ${esc(p.name)} to reconnect…` : `${esc(p.name)}'s turn`;
+    status = `${esc(p.name)}'s turn${p.connected ? '' : ' (offline)'}`;
   }
   $('info').innerHTML = `
     <div class="big">${WIND_CH[s.prevailing]} ${s.prevailingName} round</div>
     <div>Hand ${s.handNo} · Wall ${s.wallCount}</div>
     <div style="margin-top:6px;font-weight:700">${status}</div>`;
+  if (clockEnd) $('info').appendChild(clockEl());
 }
+
+// ---------- the 60-second decision clock ----------
+
+function clockEl() {
+  const el = document.createElement('span');
+  el.className = 'clock';
+  tickClock(el);
+  return el;
+}
+function tickClock(el) {
+  const secs = clockEnd ? Math.max(0, Math.ceil((clockEnd - Date.now()) / 1000)) : 0;
+  el.textContent = `⏱ ${secs}s`;
+  el.classList.toggle('low', secs <= 10);
+}
+// The server only sends state when something changes, so count down locally.
+// In the last five seconds of my own decision, a short tick each second.
+let lastTick = null;
+setInterval(() => {
+  document.querySelectorAll('.clock').forEach(tickClock);
+  if (!clockEnd || !state) return;
+  const secs = Math.ceil((clockEnd - Date.now()) / 1000);
+  const mine = myTurn(state) || (state.claim && state.claim.options);
+  if (mine && secs > 0 && secs <= 5 && secs !== lastTick) { lastTick = secs; Sound.play('draw'); }
+}, 250);
 
 function button(label, cls, onclick) {
   const b = document.createElement('button');
@@ -528,11 +589,19 @@ function renderActions() {
     const h = document.createElement('span');
     h.className = 'hint';
     h.textContent = 'Claim the discard above, or pass.';
-    a.appendChild(h);
+    a.append(h, clockEl());
+    return;
+  }
+
+  if (s.canDraw) {
+    const sp = document.createElement('span');
+    sp.append('Draw a tile', kbd('D'));
+    a.append(keyed('draw', button(sp, 'primary draw-btn', () => socket.emit('action', { type: 'draw' }))), clockEl());
     return;
   }
 
   if (s.self) {
+    a.appendChild(clockEl());
     if (s.self.tsumo) a.appendChild(button(`Mahjong! Self-drawn (${s.self.tsumoFaan} faan)`, 'win', () => socket.emit('action', { type: 'tsumo' })));
     for (const k of s.self.kongs) {
       const sp = document.createElement('span');
@@ -544,13 +613,13 @@ function renderActions() {
     const tiles = myHandTiles();
     const sel = selected !== null ? tiles[selected] : null;
     if (sel && sel[0] !== 'f') {
-      a.appendChild(button(`Discard ${tileName(sel)}`, 'primary', () => discard(sel)));
+      a.appendChild(button(`End turn: discard ${tileName(sel)}`, 'primary', () => discard(sel)));
     } else if (!sel) {
       const h = document.createElement('span');
       h.className = 'hint';
       h.textContent = s.self.flowers.length
         ? 'Play your flowers to draw replacement tiles.'
-        : 'Tap a tile to select it, tap again to discard.';
+        : 'Tap a tile to pick your discard, then End turn.';
       a.appendChild(h);
     }
   }
@@ -579,10 +648,14 @@ function renderClaimCard() {
     sp.append(label);
     if (KEY_FOR[o.type]) sp.append(kbd(KEY_FOR[o.type]));
     if (tiles) sp.appendChild(setTiles(tiles));
-    return keyed(o.type, button(sp, cls, claim(o)));
+    const b = keyed(o.type, button(sp, cls, claim(o)));
+    b.onpointerenter = b.onfocus = () => { hoverOpt = o; highlightHand(); };
+    b.onpointerleave = b.onblur = () => { if (hoverOpt === o) { hoverOpt = null; highlightHand(); } };
+    return b;
   };
 
   card.innerHTML = `<div class="cc-head">${esc(nameOf(c.from))} discarded</div>`;
+  card.firstChild.append(' ', clockEl());
   card.appendChild(tileEl(c.tile, 'big'));
   const opts = document.createElement('div');
   opts.className = 'opts';
@@ -600,7 +673,7 @@ function renderClaimCard() {
   card.classList.remove('hidden');
 }
 
-// ---------- keyboard: P pung, C chow, K kong, Space pass ----------
+// ---------- keyboard: P pung, C chow, K kong, D draw, Space pass (or draw) ----------
 
 const KEY_FOR = { pung: 'P', chow: 'C', kong: 'K' };
 function kbd(k) {
@@ -614,8 +687,9 @@ function keyed(kind, btn) {
 }
 document.addEventListener('keydown', (e) => {
   if (!state || e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest('input, textarea'))) return;
-  const kind = { p: 'pung', c: 'chow', k: 'kong', ' ': 'pass' }[e.key.toLowerCase()];
+  let kind = { p: 'pung', c: 'chow', k: 'kong', d: 'draw', ' ': 'pass' }[e.key.toLowerCase()];
   if (!kind) return;
+  if (kind === 'pass' && state.canDraw) kind = 'draw';
   const btns = [...document.querySelectorAll(`#pos0 button[data-key="${kind}"]`)];
   if (!btns.length) return;
   e.preventDefault();
