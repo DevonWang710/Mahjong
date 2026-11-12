@@ -288,28 +288,28 @@ class Game {
 
   resolveClaims() {
     const { from, tile, responses } = this.claim;
-    const order = [1, 2, 3].map((k) => (from + k) % 4);
-    const pick = (types) => order.find((s) => responses[s] && types.includes(responses[s].type));
+    // Real players beat bots: between equal claims a real player wins, and any pung, kong or chow
+    // from a real player beats a bot's (only a bot's Mahjong still wins). Otherwise turn order breaks ties.
+    const turnOrder = [1, 2, 3].map((k) => (from + k) % 4);
+    const humans = turnOrder.filter((s) => !this.isAuto(s));
+    const bots = turnOrder.filter((s) => this.isAuto(s));
+    const pick = (seats, types) => seats.find((s) => responses[s] && types.includes(responses[s].type));
+    const setFrom = (seats) => pick(seats, ['pung', 'kong']) ?? pick(seats, ['chow']);
+    const winner = pick(humans, ['win']) ?? pick(bots, ['win']);
+    const setSeat = winner !== undefined ? undefined : setFrom(humans) ?? setFrom(bots);
     const takeDiscard = () => { this.players[from].discards.pop(); this.lastDiscard = null; };
 
     // Everyone decided at once; if more than one player wanted the tile, show the contest.
-    // Mahjong beats pung/kong beats chow; between equal claims the next player in turn order wins.
-    const claims = order.filter((s) => responses[s] && responses[s].type !== 'pass')
+    const claims = turnOrder.filter((s) => responses[s] && responses[s].type !== 'pass')
       .map((s) => ({ seat: s, kind: responses[s].type }));
-    if (claims.length > 1) {
-      const winner = pick(['win']) ?? pick(['pung', 'kong']) ?? pick(['chow']);
-      this.event('contest', { tile, claims, winner });
-    }
+    if (claims.length > 1) this.event('contest', { tile, claims, winner: winner ?? setSeat });
 
-    const winner = pick(['win']);
     if (winner !== undefined) {
       takeDiscard();
       return this.finishWin(winner, from, tile);
     }
 
-    const pk = pick(['pung', 'kong']);
-    const ch = pk === undefined ? pick(['chow']) : undefined;
-    const seat = pk !== undefined ? pk : ch;
+    const seat = setSeat;
     if (seat === undefined) return this.nextTurn(from);
 
     takeDiscard();

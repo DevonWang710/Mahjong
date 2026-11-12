@@ -653,7 +653,7 @@ function renderClaimCard() {
   card.innerHTML = `<div class="cc-head">${esc(nameOf(c.from))} discarded</div>`;
   card.firstChild.append(' ', clockEl());
   if (c.options.length) {
-    card.insertAdjacentHTML('beforeend', '<div class="cc-rule">Everyone decides at once · Mahjong beats Pung/Kong beats Chow</div>');
+    card.insertAdjacentHTML('beforeend', '<div class="cc-rule">Everyone decides at once · Mahjong beats Pung/Kong beats Chow · real players beat bots</div>');
   }
   card.appendChild(tileEl(c.tile, 'big'));
   const opts = document.createElement('div');
@@ -824,9 +824,10 @@ const CLAIM_RANK = { win: 2, pung: 1, kong: 1, chow: 0 };
 function contestToast(e) {
   const w = e.claims.find((c) => c.seat === e.winner);
   const beaten = e.claims.filter((c) => c.seat !== e.winner);
+  const human = (seat) => !state.players[seat].isBot;
   const why = beaten.every((c) => CLAIM_RANK[c.kind] < CLAIM_RANK[w.kind])
     ? `${CLAIM_WORD[w.kind]} beats ${[...new Set(beaten.map((c) => CLAIM_WORD[c.kind]))].join(' and ')}`
-    : 'next in turn order wins a tie';
+    : human(w.seat) && beaten.every((c) => !human(c.seat)) ? 'real players beat bots' : 'next in turn order wins a tie';
   const who = e.claims.map((c) => `${esc(nameOf(c.seat))}: <b>${CLAIM_WORD[c.kind]}</b>`).join(' · ');
   toast(`⚔️ Contest for ${esc(tileName(e.tile))}!<br>${who}<br>${esc(nameOf(e.winner))} ${e.winner === state.mySeat ? 'take' : 'takes'} it (${why})`, 4000);
 }
