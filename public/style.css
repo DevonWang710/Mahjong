@@ -47,11 +47,11 @@ button:disabled { opacity: .5; cursor: default; }
 .muted { opacity: .7; font-size: 13px; }
 
 /* ---------- table layout ---------- */
-/* The board is a 1040x1040 square tilted in 3D; fit() in client.js scales it to the screen. */
+/* The board is a 1240x1240 square tilted in 3D; fit() in client.js scales it to the screen. */
 #table { height: 100%; position: relative; }
 .scene { position: absolute; inset: 0; overflow: hidden; }
-.near { position: absolute; left: 0; right: 0; top: 925px; height: 0; } /* below my 3rd discard row */
-.stage { position: absolute; left: 50%; top: 50%; width: 1040px; height: 1040px; perspective: 1600px; }
+.near { position: absolute; left: 0; right: 0; top: 1025px; height: 0; } /* below my 3rd discard row */
+.stage { position: absolute; left: 50%; top: 50%; width: 1240px; height: 1240px; perspective: 1900px; }
 .board {
   position: absolute; inset: 0; transform: rotateX(44deg); transform-style: preserve-3d;
   border-radius: 34px;
@@ -72,7 +72,7 @@ button:disabled { opacity: .5; cursor: default; }
 .tile.box.bm { --tz: 24px; }
 .seat .pool {
   /* Pinwheel: each pile starts level with the left player's pile, so the corners never collide. */
-  position: absolute; top: 632px; left: 408px; width: 360px;
+  position: absolute; top: 732px; left: 508px; width: 420px; /* 7 tiles a row; top + left = board size */
   display: flex; flex-wrap: wrap; gap: 2px; align-content: start;
 }
 .seat .laid {
