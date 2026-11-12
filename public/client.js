@@ -113,7 +113,8 @@ const myTurn = (s) => (s.phase === 'draw' || s.phase === 'discard') && s.turn ==
 function playStateSounds(prev, s, eventSound) {
   const discarded = discardCount(s) > discardCount(prev);
   if (discarded) Sound.play('discard');
-  if (s.claim && s.claim.options && !(prev.claim && prev.claim.options)) setTimeout(() => Sound.play('claimable'), discarded ? 200 : 0);
+  const claimable = (x) => !!(x.claim && x.claim.options && x.claim.options.length);
+  if (claimable(s) && !claimable(prev)) setTimeout(() => Sound.play('claimable'), discarded ? 200 : 0);
   else if (!eventSound && myTurn(s) && !myTurn(prev)) setTimeout(() => Sound.play('turn'), discarded ? 250 : 0);
 }
 
@@ -523,13 +524,8 @@ function renderInfo() {
   const s = state;
   let status;
   if (s.phase === 'ended') status = 'Hand over';
-  else if (s.claim) {
-    if (s.claim.options) status = 'Claim or pass?';
-    else {
-      const deciding = s.claim.waitingOn.filter((x) => !s.players[x].isBot && x !== s.mySeat).map((x) => esc(nameOf(x)));
-      status = deciding.length ? `${deciding.join(', ')} ${deciding.length > 1 ? 'are' : 'is'} deciding` : 'Bots are thinking…';
-    }
-  } else if (s.turn === s.mySeat) status = s.canDraw ? 'Your turn: draw a tile' : 'Your turn: discard to end it';
+  // Never say who is still deciding on a discard: that would tell everyone they can claim it.
+  else if (s.claim) status = s.claim.options ? 'Claim or pass?' : 'Discard is open for claims'; else if (s.turn === s.mySeat) status = s.canDraw ? 'Your turn: draw a tile' : 'Your turn: discard to end it';
   else {
     const p = s.players[s.turn];
     status = `${esc(p.name)}'s turn${p.connected ? '' : ' (offline)'}`;
@@ -588,7 +584,7 @@ function renderActions() {
   if (s.claim && s.claim.options) {
     const h = document.createElement('span');
     h.className = 'hint';
-    h.textContent = 'Claim the discard above, or pass.';
+    h.textContent = s.claim.options.length ? 'Claim the discard above, or pass.' : 'Pass when you\'re ready.';
     a.append(h, clockEl());
     return;
   }

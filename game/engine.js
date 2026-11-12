@@ -253,12 +253,14 @@ class Game {
     }
   }
 
+  // Every connected real player is shown every discard (even with nothing to claim, just Pass),
+  // so how long someone takes never gives away what's in their hand. Bots only join if they can claim.
   openClaims(from, tile) {
     const options = {};
     for (let k = 1; k < 4; k++) {
       const s = (from + k) % 4;
       const o = this.claimOptionsFor(s, from, tile);
-      if (o.length) options[s] = o;
+      if (o.length || (!this.isAuto(s) && this.players[s].connected)) options[s] = o;
     }
     if (!Object.keys(options).length) return this.nextTurn(from);
     this.phase = 'claim';
@@ -458,7 +460,6 @@ class Game {
         tile: c.tile,
         from: c.from,
         options: c.options[seat] && !(seat in c.responses) ? c.options[seat] : null,
-        waitingOn: Object.keys(c.options).map(Number).filter((s) => !(s in c.responses)),
       } : null,
       result: this.result,
       events: this.events,
