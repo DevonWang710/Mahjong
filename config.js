@@ -4,6 +4,8 @@ module.exports = {
   MIN_FAAN: 0,
   // How long bots "think" before acting (ms). Each move varies randomly by ±30%.
   BOT_DELAY_MS: 1500,
+  // Extra pause before a bot plays its turn (ms), so the table doesn't rush along.
+  BOT_EXTRA_MS: 5000,
   // Seconds a real player gets for each decision (draw, discard, claim). When it runs out the game moves for them.
   TURN_SECONDS: 60,
   // How long the deal animation runs before the first move (ms).

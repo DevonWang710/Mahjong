@@ -27,6 +27,7 @@ assert.ok(r && r.items.filter(([n]) => n === 'Dragon pung').length === 2, 'melds
 console.log('scoring checks passed');
 
 config.BOT_DELAY_MS = 0;
+config.BOT_EXTRA_MS = 0;
 config.DEAL_MS = 0;
 
 // Plays `hands` hands and checks tiles are never lost. Resolves with the number of wins.

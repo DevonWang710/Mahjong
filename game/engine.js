@@ -292,6 +292,15 @@ class Game {
     const pick = (types) => order.find((s) => responses[s] && types.includes(responses[s].type));
     const takeDiscard = () => { this.players[from].discards.pop(); this.lastDiscard = null; };
 
+    // Everyone decided at once; if more than one player wanted the tile, show the contest.
+    // Mahjong beats pung/kong beats chow; between equal claims the next player in turn order wins.
+    const claims = order.filter((s) => responses[s] && responses[s].type !== 'pass')
+      .map((s) => ({ seat: s, kind: responses[s].type }));
+    if (claims.length > 1) {
+      const winner = pick(['win']) ?? pick(['pung', 'kong']) ?? pick(['chow']);
+      this.event('contest', { tile, claims, winner });
+    }
+
     const winner = pick(['win']);
     if (winner !== undefined) {
       takeDiscard();
@@ -351,7 +360,7 @@ class Game {
     clearTimeout(this.botTimer);
     const v = this.version;
     if (this.phase === 'discard' && this.isAuto(this.turn)) {
-      const wait = Math.max(0, (this.dealUntil || 0) - Date.now()) + thinkTime();
+      const wait = Math.max(0, (this.dealUntil || 0) - Date.now()) + thinkTime() + config.BOT_EXTRA_MS;
       this.botTimer = setTimeout(() => { if (v === this.version) this.botTurn(this.turn); }, wait);
     } else if (this.phase === 'claim') {
       const c = this.claim;

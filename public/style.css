@@ -314,6 +314,7 @@ button.mute {
 }
 @keyframes cardpop { from { transform: translateX(-50%) scale(.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .cc-head { font-weight: 700; font-size: 17px; }
+.cc-rule { font-size: 13px; opacity: .8; margin-top: -6px; }
 .claim-card .big { --tw: 76px; --th: 119px; }
 .claim-card .opts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .claim-card .opts button { font-size: 17px; padding: 8px 12px; }

@@ -652,6 +652,9 @@ function renderClaimCard() {
 
   card.innerHTML = `<div class="cc-head">${esc(nameOf(c.from))} discarded</div>`;
   card.firstChild.append(' ', clockEl());
+  if (c.options.length) {
+    card.insertAdjacentHTML('beforeend', '<div class="cc-rule">Everyone decides at once · Mahjong beats Pung/Kong beats Chow</div>');
+  }
   card.appendChild(tileEl(c.tile, 'big'));
   const opts = document.createElement('div');
   opts.className = 'opts';
@@ -795,6 +798,8 @@ function showEvents() {
     if (e.type === 'claim') {
       claimFx(e);
       play(e.kind);
+    } else if (e.type === 'contest') {
+      contestToast(e);
     } else if (e.type === 'newHand') {
       toast(`Hand ${e.handNo} — ${esc(nameOf(e.dealer))} ${e.dealer === state.mySeat ? 'are' : 'is'} dealer`);
       play('shuffle');
@@ -810,6 +815,20 @@ function showEvents() {
     }
   }
   return played;
+}
+
+const CLAIM_WORD = { win: 'Mahjong', pung: 'Pung', kong: 'Kong', chow: 'Chow' };
+const CLAIM_RANK = { win: 2, pung: 1, kong: 1, chow: 0 };
+
+// Several players claimed the same discard: show who wanted it and why the winner got it.
+function contestToast(e) {
+  const w = e.claims.find((c) => c.seat === e.winner);
+  const beaten = e.claims.filter((c) => c.seat !== e.winner);
+  const why = beaten.every((c) => CLAIM_RANK[c.kind] < CLAIM_RANK[w.kind])
+    ? `${CLAIM_WORD[w.kind]} beats ${[...new Set(beaten.map((c) => CLAIM_WORD[c.kind]))].join(' and ')}`
+    : 'next in turn order wins a tie';
+  const who = e.claims.map((c) => `${esc(nameOf(c.seat))}: <b>${CLAIM_WORD[c.kind]}</b>`).join(' · ');
+  toast(`⚔️ Contest for ${esc(tileName(e.tile))}!<br>${who}<br>${esc(nameOf(e.winner))} ${e.winner === state.mySeat ? 'take' : 'takes'} it (${why})`, 4000);
 }
 
 // ---------- big animations: chow / pung / kong bursts and the win celebration ----------
